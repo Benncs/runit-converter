@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct ElementUnit {
     pub name: String,
     exp: f64,
@@ -27,6 +28,7 @@ impl ElementUnit {
     }
 }
 
+#[derive(Clone)]
 pub struct Unit {
     pub partials: Vec<ElementUnit>,
 }
@@ -46,13 +48,22 @@ impl From<ElementUnit> for Unit {
 }
 
 pub struct Value {
-    unit: Unit,
-    value: f64,
+    pub unit: Unit,
+    pub value: f64,
+}
+
+impl From<Value> for f64 {
+    fn from(val: Value) -> Self {
+        val.value
+    }
 }
 
 impl Value {
     fn new(unit: Unit) -> Self {
         Self { unit, value: 0. }
+    }
+    pub fn from_value(unit: Unit, value: f64) -> Self {
+        Self { unit, value }
     }
 }
 
