@@ -3,19 +3,19 @@ use runits_converter::unitquery::{SqlUnitQuery, UnitQuery};
 use runits_converter::*;
 
 #[tokio::main]
-
 async fn main() {
     let c = SqlUnitQuery::new().await.unwrap();
     let names = c.get_unit_list().unwrap();
 
     println!("{:?}", names);
 
-    let pu = ElementUnit::new("kg1");
+    let pu = ElementUnit::new("kg", 1.);
+    let pu2 = ElementUnit::new("g", 1.);
 
     let mut converter = MainConverter::new(c);
 
-    println!("{:?}", converter.is_valid_unit(&pu.into()));
+    let r = converter.check_dimension(&pu.into(), &pu2.into());
     // let name = c.get_dimension_name(&pu);
 
-    // println!("{:?}", name);
+    println!("{:?}", r);
 }

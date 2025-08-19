@@ -53,10 +53,11 @@ impl SqlUnitQuery {
     async fn impl_get_dim_name(&self, unit_name: &str) -> Result<String, ()> {
         let query = Self::get_query_dimension(unit_name);
         let mut rows = self.conn.query(&query, ()).await.unwrap();
-        let name = rows
-            .next()
-            .await
-            .unwrap()
+        let row = rows.next().await.unwrap();
+        if row.is_none() {
+            return Err(());
+        }
+        let name = row
             .unwrap()
             .get_value(0)
             .unwrap()
@@ -72,11 +73,20 @@ impl SqlUnitQuery {
     }
 
     async fn impl_get_dim_from_unit(&self, unit_name: &str) -> Result<(String, Dimension), ()> {
+        //Not implemented yet in Turso, use 2 queries instead
+        // let query = format!(
+        //     "SELECT dimension_name, mass, length, duration, current, amount, temperature, luminosity
+        //     FROM dimension
+        //     WHERE dimension_name IN ({});",
+        //     Self::get_query_dimension(unit_name)
+        // );
+
+        let name = self.impl_get_dim_name(unit_name).await?;
         let query = format!(
-            "SELECT dimension_name, mass, length, duration, current, amount, temperature, luminosity
+            "SELECT dimension_name, mass,  duration,length, current, amount, temperature, luminosity
             FROM dimension
-            WHERE dimension_name IN ({});",
-            Self::get_query_dimension(unit_name)
+            WHERE dimension_name ='{}'",name
+            // Self::get_query_dimension(unit_name)
         );
         let mut rows = self.conn.query(&query, ()).await.unwrap();
         let row = rows.next().await.unwrap().unwrap();
@@ -87,8 +97,8 @@ impl SqlUnitQuery {
 
         let dimension_name = row.get_value(0).unwrap().as_text().unwrap().to_owned();
         let mut dimension = Dimension::default();
-        for i in 1..7 {
-            dimension.0[i - 1] = row.get_value(i).unwrap().as_integer().unwrap().to_owned() as i32;
+        for i in 1..dimension.0.len() {
+            dimension.0[i - 1] = row.get_value(i).unwrap().as_real().unwrap().to_owned() as i32;
         }
 
         Ok((dimension_name, dimension))
@@ -111,10 +121,10 @@ impl UnitQuery for SqlUnitQuery {
     fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, ()> {
         if unit.dim.is_none() {
             let (_name, dim) = block_on(self.impl_get_dim_from_unit(&unit.name)).unwrap();
-            return Ok(dim);
+            Ok(dim)
+        } else {
+            todo!()
         }
-
-        todo!()
     }
 
     fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, ()> {
@@ -123,5 +133,24 @@ impl UnitQuery for SqlUnitQuery {
 
     fn are_same_dimension(&self, unit1: &Unit, unit2: Unit) -> bool {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_dimension_name() {
+        let c = SqlUnitQuery::new().await.unwrap();
+        let pu = ElementUnit::new("kg", 1.);
+        let name = c.get_dimension_name(&pu).unwrap();
+        assert!(name == *"mass");
+        let pu = ElementUnit::new("s", 1.);
+        let name = c.get_dimension_name(&pu).unwrap();
+        assert!(name == *"duration");
+
+        let pu = ElementUnit::new("FALSEUNIT", 99.);
+        assert!(c.get_dimension_name(&pu).is_err());
     }
 }
