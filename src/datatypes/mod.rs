@@ -15,6 +15,15 @@ impl ElementUnit {
             conversionfactor: 0.,
         }
     }
+
+    pub fn set_factor(&mut self, cf: f64) {
+        self.conversionfactor = cf;
+    }
+
+    pub fn get_factor(&self) -> f64 {
+        self.conversionfactor
+    }
+
     pub fn exp(&self) -> f64 {
         self.exp
     }

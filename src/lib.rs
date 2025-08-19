@@ -11,12 +11,18 @@ pub enum UnitMatch {
     Equal,
 }
 
+pub trait UnitFactory {
+    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError>;
+}
+
 pub trait UnitConverter {
     fn is_valid_unit(&mut self, unit: &Unit) -> bool;
     fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool;
     fn get_dimension(&self, unit: &Unit) -> Dimension;
-    fn convert(&self, unit: &Value, unit: &Unit) -> Result<Value, ()>;
-    fn get_conversion_factor(&self, unit: &Unit) -> Result<f64, ()>;
+    fn get_dimension_mut(&self, unit: &mut Unit) -> Dimension;
+    fn convert(&self, unit1: &Value, unit2: &Unit) -> Result<Value, UnitError>;
+    fn convert_mut(&self, unit1: &mut Value, unit2: &mut Unit) -> Result<Value, UnitError>;
+    fn get_conversion_factor(&self, unit: &Unit) -> Result<f64, UnitError>;
 }
 
 pub struct MainConverter<T: UnitQuery> {
@@ -27,6 +33,32 @@ pub struct MainConverter<T: UnitQuery> {
 impl<T: UnitQuery> MainConverter<T> {
     pub fn new(query: T) -> Self {
         Self { query, ulist: None }
+    }
+    fn fold_dimension<'a, I, P, F>(&self, partials: I, mut on_partial: F) -> Dimension
+    where
+        I: IntoIterator<Item = P>,
+        P: 'a + std::borrow::Borrow<ElementUnit>,
+        F: FnMut(P, &str),
+    {
+        let mut dimension = Dimension::default();
+
+        for partial in partials {
+            let partial_ref: &ElementUnit = partial.borrow();
+            let (name, dim) = self.query.get_dimension(partial_ref).unwrap();
+            dimension = dimension.dot(&dim, partial_ref.exp());
+            on_partial(partial, &name);
+        }
+
+        dimension
+    }
+}
+
+impl<T: UnitQuery> UnitFactory for MainConverter<T> {
+    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
+        let mut unit = ElementUnit::new(name, exp);
+        unit.set_dim(&self.query.get_dimension_name(&unit)?);
+        unit.set_factor(self.query.get_conversion_factor(&unit)?);
+        Ok(unit)
     }
 }
 
@@ -40,7 +72,7 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
             .all(|p_u| self.ulist.as_ref().unwrap().contains(&p_u.name))
     }
 
-    fn get_conversion_factor(&self, unit: &Unit) -> Result<f64, ()> {
+    fn get_conversion_factor(&self, unit: &Unit) -> Result<f64, UnitError> {
         let mut cf = 1.;
         for partial in &unit.partials {
             let c = self.query.get_conversion_factor(partial).unwrap();
@@ -51,11 +83,13 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
     }
 
     fn get_dimension(&self, unit: &Unit) -> Dimension {
-        let mut dimension = Dimension::default();
-        for partial in &unit.partials {
-            dimension = dimension.dot(&self.query.get_dimension(partial).unwrap(), partial.exp());
-        }
-        dimension
+        self.fold_dimension(unit.partials.iter(), |_, _| {})
+    }
+
+    fn get_dimension_mut(&self, unit: &mut Unit) -> Dimension {
+        self.fold_dimension(unit.partials.iter_mut(), |p, name| {
+            p.dim = Some(name.to_string());
+        })
     }
 
     fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool {
@@ -64,14 +98,18 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
         d1 == d2
     }
 
-    fn convert(&self, val: &Value, unit: &Unit) -> Result<Value, ()> {
+    fn convert(&self, val: &Value, unit: &Unit) -> Result<Value, UnitError> {
         if self.are_same_dimension(&val.unit, unit) {
             let cf1 = self.get_conversion_factor(&val.unit).unwrap();
             let cf2 = self.get_conversion_factor(unit).unwrap();
             Ok(Value::from_value(unit.clone(), val.value * cf1 / cf2))
         } else {
-            Err(())
+            Err(UnitError::BadUnit("".to_owned()))
         }
+    }
+
+    fn convert_mut(&self, unit1: &mut Value, unit2: &mut Unit) -> Result<Value, UnitError> {
+        todo!()
     }
 }
 
@@ -154,5 +192,19 @@ mod test {
         let value = Value::from_value(full_unit, 5.0);
 
         assert!(converter.convert(&value, &full_unit2).unwrap().value == 5. * 1e-6);
+    }
+
+    #[tokio::test]
+    async fn test_construct() {
+        let c = SqlUnitQuery::new().await.unwrap();
+        let converter = MainConverter::new(c);
+        let pu = converter.construct_unit("g", 1.).unwrap();
+        let pu2 = converter.construct_unit("kg", 1.).unwrap();
+        let pu3 = converter.construct_unit("m", 1.).unwrap();
+
+        assert!(pu.dim == Some("mass".to_owned()));
+        assert!(pu2.dim == Some("mass".to_owned()));
+        assert!(pu3.dim == Some("length".to_owned()));
+        assert!(pu.get_factor() == 1e-3);
     }
 }
