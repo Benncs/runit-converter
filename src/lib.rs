@@ -1,8 +1,9 @@
 mod datatypes;
+mod error;
 pub mod unitquery;
-
 use datatypes::Dimension;
 pub use datatypes::{ElementUnit, Unit, Value};
+pub use error::UnitError;
 use unitquery::UnitQuery;
 pub enum UnitMatch {
     Different,
@@ -94,7 +95,7 @@ mod test {
     #[tokio::test]
     async fn test_same_dimension() {
         let c = SqlUnitQuery::new().await.unwrap();
-        let mut converter = MainConverter::new(c);
+        let converter = MainConverter::new(c);
         let pu = ElementUnit::new("kg", 1.);
         let pu2 = ElementUnit::new("g", 1.);
 

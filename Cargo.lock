@@ -898,6 +898,7 @@ name = "runits-converter"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "thiserror 2.0.15",
  "tokio",
  "turso",
 ]

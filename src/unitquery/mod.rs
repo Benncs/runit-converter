@@ -1,15 +1,18 @@
-use crate::datatypes::{Dimension, ElementUnit, Unit};
+use crate::{
+    UnitError,
+    datatypes::{Dimension, ElementUnit, Unit},
+};
 use futures::executor::block_on;
 use turso;
 
 pub trait UnitQuery {
-    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, ()>;
+    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, UnitError>;
 
-    fn get_unit_list(&self) -> Result<Vec<String>, ()>;
+    fn get_unit_list(&self) -> Result<Vec<String>, UnitError>;
 
-    fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, ()>;
+    fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, UnitError>;
 
-    fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, ()>;
+    fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, UnitError>;
 }
 
 pub struct SqlUnitQuery {
@@ -21,12 +24,12 @@ impl SqlUnitQuery {
     const TABLE_NAME: &str = "conversiontable";
 
     pub async fn new() -> turso::Result<Self> {
-        let _db = turso::Builder::new_local("data/sqlite.db").build().await?;
+        let _db = turso::Builder::new_local(env!("DB_PATH")).build().await?;
         let conn = _db.connect()?;
         Ok(Self { conn, _db })
     }
 
-    async fn impl_query_unit_list(&self) -> Result<Vec<String>, ()> {
+    async fn impl_query_unit_list(&self) -> Result<Vec<String>, UnitError> {
         let query = format!(
             "SELECT unit_name, dimension_name FROM {};",
             Self::TABLE_NAME
@@ -38,7 +41,11 @@ impl SqlUnitQuery {
             names.push(name.as_text().unwrap().to_owned());
         }
 
-        if names.is_empty() { Err(()) } else { Ok(names) }
+        if names.is_empty() {
+            Err(UnitError::Custom("Empty databse".to_owned()))
+        } else {
+            Ok(names)
+        }
     }
 
     fn get_query_dimension(unit_name: &str) -> String {
@@ -48,12 +55,14 @@ impl SqlUnitQuery {
         )
     }
 
-    async fn impl_get_dim_name(&self, unit_name: &str) -> Result<String, ()> {
+    async fn impl_get_dim_name(&self, unit_name: &str) -> Result<String, UnitError> {
         let query = Self::get_query_dimension(unit_name);
         let mut rows = self.conn.query(&query, ()).await.unwrap();
         let row = rows.next().await.unwrap();
         if row.is_none() {
-            return Err(());
+            return Err(UnitError::Query(
+                "SqlQuery: should have exactly one result".to_owned(),
+            ));
         }
         let name = row
             .unwrap()
@@ -64,13 +73,18 @@ impl SqlUnitQuery {
             .to_owned();
 
         if rows.next().await.unwrap().is_some() {
-            return Err(());
+            return Err(UnitError::Query(
+                "SqlQuery: should have exactly one result".to_owned(),
+            ));
         }
 
         Ok(name)
     }
 
-    async fn impl_get_dim_from_unit(&self, unit_name: &str) -> Result<(String, Dimension), ()> {
+    async fn impl_get_dim_from_unit(
+        &self,
+        unit_name: &str,
+    ) -> Result<(String, Dimension), UnitError> {
         //Not implemented yet in Turso, use 2 queries instead
         // let query = format!(
         //     "SELECT dimension_name, mass, length, duration, current, amount, temperature, luminosity
@@ -90,7 +104,9 @@ impl SqlUnitQuery {
         let row = rows.next().await.unwrap().unwrap();
         assert!(row.column_count() == 8);
         if rows.next().await.unwrap().is_some() {
-            return Err(());
+            return Err(UnitError::Query(
+                "SqlQuery: should have exactly one result".to_owned(),
+            ));
         }
 
         let dimension_name = row.get_value(0).unwrap().as_text().unwrap().to_owned();
@@ -102,7 +118,7 @@ impl SqlUnitQuery {
         Ok((dimension_name, dimension))
     }
 
-    async fn impl_conversion_factor(&self, unit_name: &str) -> Result<f64, ()> {
+    async fn impl_conversion_factor(&self, unit_name: &str) -> Result<f64, UnitError> {
         let query = format!(
             "SELECT conversionfactor  FROM conversiontable WHERE unit_name = '{}'",
             unit_name
@@ -111,12 +127,16 @@ impl SqlUnitQuery {
         let mut rows = self.conn.query(&query, ()).await.unwrap();
         let row = rows.next().await.unwrap();
         if row.is_none() {
-            return Err(());
+            return Err(UnitError::Query(
+                "SqlQuery: should have exactly one result".to_owned(),
+            ));
         }
         let row = row.unwrap();
         assert!(row.column_count() == 1);
         if rows.next().await.unwrap().is_some() {
-            return Err(());
+            return Err(UnitError::Query(
+                "SqlQuery: should have exactly one result".to_owned(),
+            ));
         }
 
         Ok(row.get_value(0).unwrap().as_real().unwrap().to_owned())
@@ -128,15 +148,15 @@ impl SqlUnitQuery {
 }
 
 impl UnitQuery for SqlUnitQuery {
-    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, ()> {
+    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, UnitError> {
         block_on(self.impl_conversion_factor(&unit.name))
     }
 
-    fn get_unit_list(&self) -> Result<Vec<String>, ()> {
+    fn get_unit_list(&self) -> Result<Vec<String>, UnitError> {
         block_on(self.impl_query_unit_list())
     }
 
-    fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, ()> {
+    fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, UnitError> {
         if unit.dim.is_none() {
             let (_name, dim) = block_on(self.impl_get_dim_from_unit(&unit.name)).unwrap();
             Ok(dim)
@@ -145,7 +165,7 @@ impl UnitQuery for SqlUnitQuery {
         }
     }
 
-    fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, ()> {
+    fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, UnitError> {
         block_on(self.impl_get_dim_name(&p_unit.name))
     }
 }
