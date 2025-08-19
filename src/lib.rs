@@ -13,7 +13,7 @@ pub enum UnitMatch {
 
 pub trait UnitConverter {
     fn is_valid_unit(&mut self, unit: &Unit) -> bool;
-    fn check_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool;
+    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool;
     fn get_dimension(&self, unit: &Unit) -> Dimension;
 }
 
@@ -46,7 +46,7 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
         dimension
     }
 
-    fn check_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool {
+    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool {
         let d1 = self.get_dimension(unit1);
         let d2 = self.get_dimension(unit2);
         d1 == d2
@@ -77,14 +77,14 @@ mod test {
         let pu = ElementUnit::new("kg", 1.);
         let pu2 = ElementUnit::new("g", 1.);
 
-        assert!(converter.check_dimension(&pu.into(), &pu2.into()));
+        assert!(converter.are_same_dimension(&pu.into(), &pu2.into()));
 
         let full_unit =
             Unit::from_vec(vec![ElementUnit::new("kg", 1.), ElementUnit::new("s", -1.)]);
         let full_unit2 =
             Unit::from_vec(vec![ElementUnit::new("g", 1.), ElementUnit::new("h", -1.)]);
 
-        assert!(converter.check_dimension(&full_unit, &full_unit2));
+        assert!(converter.are_same_dimension(&full_unit, &full_unit2));
     }
 
     #[tokio::test]

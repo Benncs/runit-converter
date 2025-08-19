@@ -14,7 +14,7 @@ async fn main() {
 
     let mut converter = MainConverter::new(c);
 
-    let r = converter.check_dimension(&pu.into(), &pu2.into());
+    let r = converter.are_same_dimension(&pu.into(), &pu2.into());
     // let name = c.get_dimension_name(&pu);
 
     println!("{:?}", r);

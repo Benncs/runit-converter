@@ -3,15 +3,13 @@ use futures::executor::block_on;
 use turso;
 
 pub trait UnitQuery {
-    fn get_conversion_factor(&self, unit: &Unit) -> Option<f64>;
+    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, ()>;
 
     fn get_unit_list(&self) -> Result<Vec<String>, ()>;
 
     fn get_dimension(&self, unit: &ElementUnit) -> Result<Dimension, ()>;
 
     fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, ()>;
-
-    fn are_same_dimension(&self, unit1: &Unit, unit2: Unit) -> bool;
 }
 
 pub struct SqlUnitQuery {
@@ -104,14 +102,34 @@ impl SqlUnitQuery {
         Ok((dimension_name, dimension))
     }
 
+    async fn impl_conversion_factor(&self, unit_name: &str) -> Result<f64, ()> {
+        let query = format!(
+            "SELECT conversionfactor  FROM conversiontable WHERE unit_name = '{}'",
+            unit_name
+        );
+
+        let mut rows = self.conn.query(&query, ()).await.unwrap();
+        let row = rows.next().await.unwrap();
+        if row.is_none() {
+            return Err(());
+        }
+        let row = row.unwrap();
+        assert!(row.column_count() == 1);
+        if rows.next().await.unwrap().is_some() {
+            return Err(());
+        }
+
+        Ok(row.get_value(0).unwrap().as_real().unwrap().to_owned())
+    }
+
     async fn check_db_integrity() -> turso::Result<bool> {
         todo!();
     }
 }
 
 impl UnitQuery for SqlUnitQuery {
-    fn get_conversion_factor(&self, unit: &Unit) -> Option<f64> {
-        todo!()
+    fn get_conversion_factor(&self, unit: &ElementUnit) -> Result<f64, ()> {
+        block_on(self.impl_conversion_factor(&unit.name))
     }
 
     fn get_unit_list(&self) -> Result<Vec<String>, ()> {
@@ -129,10 +147,6 @@ impl UnitQuery for SqlUnitQuery {
 
     fn get_dimension_name(&self, p_unit: &ElementUnit) -> Result<String, ()> {
         block_on(self.impl_get_dim_name(&p_unit.name))
-    }
-
-    fn are_same_dimension(&self, unit1: &Unit, unit2: Unit) -> bool {
-        todo!()
     }
 }
 
@@ -152,5 +166,19 @@ mod test {
 
         let pu = ElementUnit::new("FALSEUNIT", 99.);
         assert!(c.get_dimension_name(&pu).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_conversion_factor() {
+        let c = SqlUnitQuery::new().await.unwrap();
+        let pu = ElementUnit::new("kg", 1.);
+        let cv = c.get_conversion_factor(&pu).unwrap();
+        assert!(cv == 1.);
+        let pu = ElementUnit::new("g", 1.);
+        let cv = c.get_conversion_factor(&pu).unwrap();
+        assert!(cv == 1e-3);
+
+        let pu = ElementUnit::new("FALSEUNIT", 99.);
+        assert!(c.get_conversion_factor(&pu).is_err());
     }
 }
