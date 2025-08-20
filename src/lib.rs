@@ -4,7 +4,9 @@ pub mod unitquery;
 use datatypes::Dimension;
 pub use datatypes::{ElementUnit, Unit, Value};
 pub use error::UnitError;
+use std::rc::Rc;
 use unitquery::UnitQuery;
+mod parser;
 pub enum UnitMatch {
     Different,
     Same,
@@ -13,6 +15,7 @@ pub enum UnitMatch {
 
 pub trait UnitFactory {
     fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError>;
+    fn fill(&self, unit: &mut ElementUnit) -> Result<(), UnitError>;
 }
 
 pub trait UnitConverter {
@@ -26,12 +29,12 @@ pub trait UnitConverter {
 }
 
 pub struct MainConverter<T: UnitQuery> {
-    query: T,
+    query: Rc<T>,
     ulist: Option<Vec<String>>,
 }
 
 impl<T: UnitQuery> MainConverter<T> {
-    pub fn new(query: T) -> Self {
+    pub fn new(query: Rc<T>) -> Self {
         Self { query, ulist: None }
     }
     fn fold_dimension<'a, I, P, F>(&self, partials: I, mut on_partial: F) -> Dimension
@@ -53,14 +56,7 @@ impl<T: UnitQuery> MainConverter<T> {
     }
 }
 
-impl<T: UnitQuery> UnitFactory for MainConverter<T> {
-    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
-        let mut unit = ElementUnit::new(name, exp);
-        unit.set_dim(&self.query.get_dimension_name(&unit)?);
-        unit.set_factor(self.query.get_conversion_factor(&unit)?);
-        Ok(unit)
-    }
-}
+//
 
 impl<T: UnitQuery> UnitConverter for MainConverter<T> {
     fn is_valid_unit(&mut self, unit: &Unit) -> bool {
@@ -113,6 +109,39 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
     }
 }
 
+// impl<T: UnitQuery> UnitFactory for MainConverter<T> {
+// //     fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
+// //         let mut unit = ElementUnit::new(name, exp);
+// //         unit.set_dim(&self.query.get_dimension_name(&unit)?);
+// //         unit.set_factor(self.query.get_conversion_factor(&unit)?);
+// //         Ok(unit)
+// //     }
+// // }
+//
+pub struct MainUnitFactory<T: UnitQuery> {
+    query: Rc<T>,
+}
+
+impl<T: UnitQuery> MainUnitFactory<T> {
+    pub fn new(query: Rc<T>) -> Self {
+        Self { query }
+    }
+}
+
+impl<T: UnitQuery> UnitFactory for MainUnitFactory<T> {
+    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
+        let mut unit = ElementUnit::new(name, exp);
+        self.fill(&mut unit)?;
+        Ok(unit)
+    }
+
+    fn fill(&self, unit: &mut ElementUnit) -> Result<(), UnitError> {
+        unit.set_dim(&self.query.get_dimension_name(unit)?);
+        unit.set_factor(self.query.get_conversion_factor(unit)?);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::unitquery::SqlUnitQuery;
@@ -120,7 +149,7 @@ mod test {
 
     #[tokio::test]
     async fn test_valid_unit() {
-        let c = SqlUnitQuery::new().await.unwrap();
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
         let mut converter = MainConverter::new(c);
 
         let pu = ElementUnit::new("kg", 1.);
@@ -132,7 +161,7 @@ mod test {
 
     #[tokio::test]
     async fn test_same_dimension() {
-        let c = SqlUnitQuery::new().await.unwrap();
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
         let converter = MainConverter::new(c);
         let pu = ElementUnit::new("kg", 1.);
         let pu2 = ElementUnit::new("g", 1.);
@@ -149,7 +178,7 @@ mod test {
 
     #[tokio::test]
     async fn test_get_dimension() {
-        let c = SqlUnitQuery::new().await.unwrap();
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
         let converter = MainConverter::new(c);
         let pu = ElementUnit::new("kg", 1.);
 
@@ -162,7 +191,7 @@ mod test {
 
     #[tokio::test]
     async fn test_get_coefficient_factor() {
-        let c = SqlUnitQuery::new().await.unwrap();
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
         let converter = MainConverter::new(c);
         let pu = ElementUnit::new("g", 1.);
         let full_unit = Unit::from_vec(vec![ElementUnit::new("g", 1.), ElementUnit::new("h", -1.)]);
@@ -173,7 +202,7 @@ mod test {
 
     #[tokio::test]
     async fn test_convert() {
-        let c = SqlUnitQuery::new().await.unwrap();
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
         let converter = MainConverter::new(c);
         let pu = ElementUnit::new("g", 1.);
         let pu2 = ElementUnit::new("kg", 1.);
@@ -196,8 +225,8 @@ mod test {
 
     #[tokio::test]
     async fn test_construct() {
-        let c = SqlUnitQuery::new().await.unwrap();
-        let converter = MainConverter::new(c);
+        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
+        let converter = MainUnitFactory::new(c);
         let pu = converter.construct_unit("g", 1.).unwrap();
         let pu2 = converter.construct_unit("kg", 1.).unwrap();
         let pu3 = converter.construct_unit("m", 1.).unwrap();

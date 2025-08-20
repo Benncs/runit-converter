@@ -15,3 +15,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "init_db"
 path = "src/init_db.rs"
+
+[dev-dependencies]
+proptest = "1.7.0"
