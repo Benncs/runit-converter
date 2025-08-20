@@ -1,5 +1,5 @@
 _DB_PATH ?= ${PWD}/data/
-INSTALL_ROOT = ./dist
+INSTALL_ROOT ?= ./dist
 
 .PHONY: all build migrate install clean
 

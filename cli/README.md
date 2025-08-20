@@ -10,6 +10,22 @@ To get the list of all supported units:
 ```sh
 runit_conversion list
 ```
+### Dimension
+
+One can check if dimension of 2 units match with the following :
+```sh
+runit_conversion dim kg^1 g^1
+```
+
+Or can get dimension if one unit is provided:
+```sh
+runit_conversion dim kg^1
+```
+
+*(Use -v flag to have pretty print)*
+```sh
+runit_conversion -v dim Pa^-6*kg^2
+```
 
 ### Conversion
 

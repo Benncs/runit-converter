@@ -1,7 +1,7 @@
 //
 fn main() {
     if std::env::var("PROFILE").unwrap() == "release" {
-        println!("cargo:rustc-env=MYAPP_DB_PATH=/usr/share/myapp/units.db");
+        println!("cargo:rustc-env=DB_PATH={}", env!("DB_PATH"));
     } else {
         println!(
             "cargo:rustc-env=DB_PATH={}/data/sqlite.db",
