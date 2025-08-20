@@ -35,7 +35,15 @@ pub(crate) async fn init_from_scratch(db_path: &str, migrations_path: &str) -> t
 
 #[tokio::main]
 async fn main() {
-    let root = env!("CARGO_MANIFEST_DIR");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let root = std::path::Path::new(&manifest_dir)
+        .parent()
+        .unwrap()
+        .to_path_buf()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
     let db_path = match std::env::var("DB_FILE_PATH") {
         Ok(path) => path,
         Err(std::env::VarError::NotPresent) => {
