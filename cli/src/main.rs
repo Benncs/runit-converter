@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::process::exit;
+use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use libunits_converter::unitquery::{SqlUnitQuery, UnitQuery};
@@ -17,7 +17,7 @@ pub struct ConvertArgs {
 #[derive(Parser, Default, Clone)]
 pub struct DimArgs {
     pub unit1: String,
-    pub unit2: String,
+    pub unit2: Option<String>,
 }
 
 #[derive(Subcommand, Clone)]
@@ -57,7 +57,7 @@ pub struct GenArgs {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     let args = GenArgs::parse();
 
     match args.mode {
@@ -67,10 +67,7 @@ async fn main() {
 
             unit2,
         }) => {
-            let c = std::rc::Rc::new(SqlUnitQuery::new().await.unwrap());
-            let parser = InlineUnitParser::default();
-            let factory = MainUnitFactory::new(c.clone());
-            let converter = MainConverter::new(c.clone());
+            let (parser, factory, converter) = construct_all().await;
 
             let runit1 = factory.parse_fill(&parser, &unit1);
             let runit2 = factory.parse_fill(&parser, &unit2);
@@ -81,12 +78,12 @@ async fn main() {
                 match converter.convert(&value1, unit2) {
                     Ok(val) => {
                         println!("{}", val.value);
-                        exit(0);
+                        return ExitCode::SUCCESS;
                     }
                     Err(e) => {
                         if args.verbose {
                             println!("{}", e);
-                            exit(-1);
+                            return ExitCode::FAILURE;
                         }
                     }
                 }
@@ -98,9 +95,42 @@ async fn main() {
                     println!("Unit2 : {}", e)
                 }
             }
-            exit(-1)
+            return ExitCode::FAILURE;
         }
-        Mode::Dim(DimArgs { unit1, unit2 }) => {}
+        Mode::Dim(DimArgs { unit1, unit2 }) => {
+            let (parser, factory, converter) = construct_all().await;
+            let runit1 = factory.parse_fill(&parser, &unit1);
+
+            if let Err(e) = runit1 {
+                println!("Unit1 : {}", e);
+                return ExitCode::FAILURE;
+            }
+
+            if let Some(unit2) = unit2 {
+                let runit2 = factory.parse_fill(&parser, &unit2);
+                if let Err(e) = runit2 {
+                    println!("Unit2 : {}", e);
+                    return ExitCode::FAILURE;
+                }
+                let flag = if converter
+                    .are_same_dimension(&runit1.unwrap(), &runit2.unwrap())
+                    .0
+                {
+                    0
+                } else {
+                    1
+                };
+
+                println!("{}", flag);
+                //If true/false same of success/failure but in this case this is not interpreted as succes neitheir failure it's boolean flags
+
+                return flag.into();
+            } else {
+                //Safe to unwrap before tested before
+                println!("{}", converter.get_dimension(&runit1.unwrap()));
+                return ExitCode::SUCCESS;
+            }
+        }
         Mode::List => {
             let c = std::rc::Rc::new(SqlUnitQuery::new().await.unwrap());
             let names = c.get_unit_list().unwrap();
@@ -109,4 +139,5 @@ async fn main() {
             });
         }
     }
+    return ExitCode::SUCCESS;
 }
