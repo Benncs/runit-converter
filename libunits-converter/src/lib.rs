@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 mod datatypes;
 mod error;
 pub mod unitquery;
@@ -102,7 +104,7 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
             let cf2 = self.get_conversion_factor(unit).unwrap();
             Ok(Value::from_value(unit.clone(), val.value * cf1 / cf2))
         } else {
-            Err(UnitError::BadUnit("".to_owned()))
+            Err(UnitError::BadDimension)
         }
     }
 
@@ -144,9 +146,11 @@ impl<T: UnitQuery> UnitFactory for MainUnitFactory<T> {
     }
     fn parse_fill<G: UnitParser>(&self, parser: &G, text: &str) -> Result<Unit, UnitError> {
         let mut unit = parser.parse_unit(text)?;
-        unit.partials.iter_mut().for_each(|mut pu| {
-            self.fill(&mut pu);
-        });
+
+        for pu in unit.partials.iter_mut() {
+            self.fill(pu)?;
+        }
+
         Ok(unit)
     }
 }

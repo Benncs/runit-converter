@@ -1,8 +1,10 @@
 [package]
 name = "libunits_converter"
 version = "0.1.0"
-edition = "2024"
-
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+edition.workspace = true
 [dependencies]
 
 turso.workspace = true

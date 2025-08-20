@@ -1,7 +1,7 @@
 [package]
+edition.workspace = true
 name = "cli"
 version = "0.1.0"
-edition = "2024"
 authors.workspace = true
 license.workspace = true
 description.workspace = true
@@ -9,3 +9,7 @@ description.workspace = true
 tokio.workspace = true
 libunits_converter.workspace = true
 clap.workspace = true
+
+[[bin]]
+name = "runit_conversion"
+path = "./src/main.rs"

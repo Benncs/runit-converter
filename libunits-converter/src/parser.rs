@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use crate::{ElementUnit, Unit, UnitError};
 const UNSAFE_CHAR: [char; 8] = [';', '&', '|', '>', '<', '$', '!', '`'];
 fn is_safe(input: &str) -> bool {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pub(crate) async fn init_from_scratch(db_path: &str, migrations_path: &str) -> turso::Result<()> {
     let filename = format!("{}/sqlite.db", db_path);
     if !std::fs::exists(&filename).unwrap() {

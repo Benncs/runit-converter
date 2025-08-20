@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::process::exit;
 
 use clap::{Parser, Subcommand};
@@ -75,10 +77,19 @@ async fn main() {
 
             if let (Ok(unit1), Ok(unit2)) = (runit1.as_ref(), runit2.as_ref()) {
                 let value1 = Value::from_value(unit1.clone(), value);
-                if let Ok(val) = converter.convert(&value1, unit2) {
-                    println!("{}", val.value)
+
+                match converter.convert(&value1, unit2) {
+                    Ok(val) => {
+                        println!("{}", val.value);
+                        exit(0);
+                    }
+                    Err(e) => {
+                        if args.verbose {
+                            println!("{}", e);
+                            exit(-1);
+                        }
+                    }
                 }
-                exit(0);
             } else if args.verbose {
                 if let Err(e) = runit1 {
                     println!("Unit1 : {}", e)

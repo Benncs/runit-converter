@@ -1,6 +1,8 @@
-use std::fmt::Formatter;
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-#[derive(Clone)]
+use std::fmt::write;
+
+#[derive(Clone, Debug)]
 pub struct ElementUnit {
     pub name: String,
     exp: f64,
@@ -86,6 +88,12 @@ impl std::fmt::Display for Value {
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Dimension(pub [i32; 7]);
+
+impl std::fmt::Display for Dimension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
 
 impl Dimension {
     pub fn dot(&self, val: &Self, exp: f64) -> Self {

@@ -32,39 +32,13 @@ It provides functionality for **dimensional analysis** and **unit conversions** 
    - Retrieve each unit’s factor relative to SI
    - Convert using SI as an intermediate
 
----
-
-## Examples
-
-### Example 1: Pa → bar
-- **Dimension check**:
-  Both `Pa` and `bar` are *Pressure*: `M L⁻¹ T⁻²`
-
-- **Conversion factors**:
-  - `Pa`: 1 (reference SI unit)
-  - `bar`: 1 × 10⁵
-
----
-
-### Example 2: Pa → pg/mm/h²
-- **Dimension check**:
-Both units correspond to *Pressure*: `M L⁻¹ T⁻²`
-
-- **Conversion path**:
-- Convert `Pa` to SI (no change)
-- Apply conversions for `pg`, `mm`, and `h`
-- Compute resulting value
-
-- **Result**:
-Conversion is valid and computed via SI intermediates.
-
----
 
 ## Roadmap
-- [ ] CLI tool for unit conversion
+- [x] CLI tool for unit conversion
+  - [ ] Interactive cli
 - [ ] Web/REST API interface
 - [ ] Extended derived dimensions (energy, power, etc.)
 - [ ] User-defined units & dimensions
 
 ## License
-MIT License – feel free to use and adapt.
+SPDX-License-Identifier: GPL-3.0-or-later
