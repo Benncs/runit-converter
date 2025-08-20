@@ -61,10 +61,10 @@ impl UnitParser for InlineUnitParser {
                 splited[0],
                 splited[1]
                     .parse::<f64>()
-                    .map_err(|_| UnitError::BadUnit("Bad exponential".to_owned()))?,
+                    .map_err(|_| UnitError::ParseError("Bad exponential".to_owned()))?,
             ))
         } else {
-            Err(UnitError::BadUnit("Impossible to parser".to_string()))
+            Err(UnitError::ParseError(text.to_owned()))
         }
     }
 

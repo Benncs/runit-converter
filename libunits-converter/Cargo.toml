@@ -1,0 +1,22 @@
+[package]
+name = "libunits_converter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+turso.workspace = true
+tokio.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+
+[lib]
+name = "libunits_converter"
+path = "src/lib.rs"
+
+[[bin]]
+name = "init_db"
+path = "src/init_db.rs"
+
+[dev-dependencies]
+proptest = "1.7.0"

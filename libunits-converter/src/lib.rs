@@ -7,6 +7,7 @@ pub use error::UnitError;
 use std::rc::Rc;
 use unitquery::UnitQuery;
 mod parser;
+pub use parser::{InlineUnitParser, UnitParser};
 pub enum UnitMatch {
     Different,
     Same,
@@ -16,6 +17,7 @@ pub enum UnitMatch {
 pub trait UnitFactory {
     fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError>;
     fn fill(&self, unit: &mut ElementUnit) -> Result<(), UnitError>;
+    fn parse_fill<T: UnitParser>(&self, parser: &T, text: &str) -> Result<Unit, UnitError>;
 }
 
 pub trait UnitConverter {
@@ -139,6 +141,13 @@ impl<T: UnitQuery> UnitFactory for MainUnitFactory<T> {
         unit.set_dim(&self.query.get_dimension_name(unit)?);
         unit.set_factor(self.query.get_conversion_factor(unit)?);
         Ok(())
+    }
+    fn parse_fill<G: UnitParser>(&self, parser: &G, text: &str) -> Result<Unit, UnitError> {
+        let mut unit = parser.parse_unit(text)?;
+        unit.partials.iter_mut().for_each(|mut pu| {
+            self.fill(&mut pu);
+        });
+        Ok(unit)
     }
 }
 

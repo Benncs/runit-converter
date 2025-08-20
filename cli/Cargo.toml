@@ -1,0 +1,11 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+authors.workspace = true
+license.workspace = true
+description.workspace = true
+[dependencies]
+tokio.workspace = true
+libunits_converter.workspace = true
+clap.workspace = true

@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 #[derive(Clone)]
 pub struct ElementUnit {
     pub name: String,
@@ -73,6 +75,12 @@ impl Value {
     }
     pub fn from_value(unit: Unit, value: f64) -> Self {
         Self { unit, value }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
