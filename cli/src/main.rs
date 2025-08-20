@@ -127,7 +127,13 @@ async fn main() -> ExitCode {
                 return flag.into();
             } else {
                 //Safe to unwrap before tested before
-                println!("{}", converter.get_dimension(&runit1.unwrap()));
+                let dim = converter.get_dimension(&runit1.unwrap());
+                if (args.verbose) {
+                    println!("{}", dim.pretty_print());
+                } else {
+                    println!("{}", dim);
+                }
+
                 return ExitCode::SUCCESS;
             }
         }

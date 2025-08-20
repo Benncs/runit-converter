@@ -94,6 +94,7 @@ impl std::fmt::Display for Dimension {
         write!(f, "{:?}", self.0)
     }
 }
+use std::fmt::Write;
 
 impl Dimension {
     pub fn dot(&self, val: &Self, exp: f64) -> Self {
@@ -106,6 +107,34 @@ impl Dimension {
             .try_into()
             .unwrap();
         Self(e)
+    }
+
+    pub fn pretty_print(&self) -> String {
+        const NAMES: [&str; 7] = [
+            "mass",
+            "duration",
+            "length",
+            "temperature",
+            "current",
+            "amount",
+            "luminosity",
+        ];
+
+        let mut f = String::new();
+
+        // Header row
+        for name in NAMES.iter() {
+            write!(f, "{:<12}", name).unwrap(); // left-align in 12-char width
+        }
+        writeln!(f).unwrap();
+
+        // Data row
+        for val in self.0.iter() {
+            write!(f, "{:<12.3}", val).unwrap(); // 3 decimal float
+        }
+        writeln!(f).unwrap(); // line break
+
+        f
     }
 }
 
