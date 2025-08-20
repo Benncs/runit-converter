@@ -2,29 +2,28 @@
 
 mod datatypes;
 mod error;
-pub mod unitquery;
-use datatypes::Dimension;
-pub use datatypes::{ElementUnit, Unit, Value};
-pub use error::UnitError;
-use std::rc::Rc;
-use unitquery::UnitQuery;
 mod parser;
-pub use parser::{InlineUnitParser, UnitParser};
+pub mod unitquery;
+
 pub enum UnitMatch {
     Different,
     Same,
     Equal,
 }
+mod factory;
 
-pub trait UnitFactory {
-    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError>;
-    fn fill(&self, unit: &mut ElementUnit) -> Result<(), UnitError>;
-    fn parse_fill<T: UnitParser>(&self, parser: &T, text: &str) -> Result<Unit, UnitError>;
-}
+use datatypes::Dimension;
+pub use factory::{MainUnitFactory, UnitFactory};
+
+pub use datatypes::{ElementUnit, Unit, Value};
+pub use error::UnitError;
+pub use parser::{InlineUnitParser, UnitParser};
+use std::rc::Rc;
+use unitquery::{SqlUnitQuery, UnitQuery};
 
 pub trait UnitConverter {
     fn is_valid_unit(&mut self, unit: &Unit) -> bool;
-    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool;
+    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> (bool, Dimension, Dimension);
     fn get_dimension(&self, unit: &Unit) -> Dimension;
     fn get_dimension_mut(&self, unit: &mut Unit) -> Dimension;
     fn convert(&self, unit1: &Value, unit2: &Unit) -> Result<Value, UnitError>;
@@ -92,14 +91,14 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
         })
     }
 
-    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> bool {
+    fn are_same_dimension(&self, unit1: &Unit, unit2: &Unit) -> (bool, Dimension, Dimension) {
         let d1 = self.get_dimension(unit1);
         let d2 = self.get_dimension(unit2);
-        d1 == d2
+        (d1 == d2, d1, d2)
     }
 
     fn convert(&self, val: &Value, unit: &Unit) -> Result<Value, UnitError> {
-        if self.are_same_dimension(&val.unit, unit) {
+        if self.are_same_dimension(&val.unit, unit).0 {
             let cf1 = self.get_conversion_factor(&val.unit).unwrap();
             let cf2 = self.get_conversion_factor(unit).unwrap();
             Ok(Value::from_value(unit.clone(), val.value * cf1 / cf2))
@@ -113,46 +112,16 @@ impl<T: UnitQuery> UnitConverter for MainConverter<T> {
     }
 }
 
-// impl<T: UnitQuery> UnitFactory for MainConverter<T> {
-// //     fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
-// //         let mut unit = ElementUnit::new(name, exp);
-// //         unit.set_dim(&self.query.get_dimension_name(&unit)?);
-// //         unit.set_factor(self.query.get_conversion_factor(&unit)?);
-// //         Ok(unit)
-// //     }
-// // }
-//
-pub struct MainUnitFactory<T: UnitQuery> {
-    query: Rc<T>,
-}
-
-impl<T: UnitQuery> MainUnitFactory<T> {
-    pub fn new(query: Rc<T>) -> Self {
-        Self { query }
-    }
-}
-
-impl<T: UnitQuery> UnitFactory for MainUnitFactory<T> {
-    fn construct_unit(&self, name: &str, exp: f64) -> Result<ElementUnit, UnitError> {
-        let mut unit = ElementUnit::new(name, exp);
-        self.fill(&mut unit)?;
-        Ok(unit)
-    }
-
-    fn fill(&self, unit: &mut ElementUnit) -> Result<(), UnitError> {
-        unit.set_dim(&self.query.get_dimension_name(unit)?);
-        unit.set_factor(self.query.get_conversion_factor(unit)?);
-        Ok(())
-    }
-    fn parse_fill<G: UnitParser>(&self, parser: &G, text: &str) -> Result<Unit, UnitError> {
-        let mut unit = parser.parse_unit(text)?;
-
-        for pu in unit.partials.iter_mut() {
-            self.fill(pu)?;
-        }
-
-        Ok(unit)
-    }
+pub async fn construct_all() -> (
+    InlineUnitParser,
+    MainUnitFactory<SqlUnitQuery>,
+    MainConverter<SqlUnitQuery>,
+) {
+    let c = std::rc::Rc::new(SqlUnitQuery::new().await.unwrap());
+    let parser = InlineUnitParser::default();
+    let factory = MainUnitFactory::new(c.clone());
+    let converter = MainConverter::new(c);
+    (parser, factory, converter)
 }
 
 #[cfg(test)]
@@ -179,14 +148,14 @@ mod test {
         let pu = ElementUnit::new("kg", 1.);
         let pu2 = ElementUnit::new("g", 1.);
 
-        assert!(converter.are_same_dimension(&pu.into(), &pu2.into()));
+        assert!(converter.are_same_dimension(&pu.into(), &pu2.into()).0);
 
         let full_unit =
             Unit::from_vec(vec![ElementUnit::new("kg", 1.), ElementUnit::new("s", -1.)]);
         let full_unit2 =
             Unit::from_vec(vec![ElementUnit::new("g", 1.), ElementUnit::new("h", -1.)]);
 
-        assert!(converter.are_same_dimension(&full_unit, &full_unit2));
+        assert!(converter.are_same_dimension(&full_unit, &full_unit2).0);
     }
 
     #[tokio::test]
@@ -234,19 +203,5 @@ mod test {
         let value = Value::from_value(full_unit, 5.0);
 
         assert!(converter.convert(&value, &full_unit2).unwrap().value == 5. * 1e-6);
-    }
-
-    #[tokio::test]
-    async fn test_construct() {
-        let c = Rc::new(SqlUnitQuery::new().await.unwrap());
-        let converter = MainUnitFactory::new(c);
-        let pu = converter.construct_unit("g", 1.).unwrap();
-        let pu2 = converter.construct_unit("kg", 1.).unwrap();
-        let pu3 = converter.construct_unit("m", 1.).unwrap();
-
-        assert!(pu.dim == Some("mass".to_owned()));
-        assert!(pu2.dim == Some("mass".to_owned()));
-        assert!(pu3.dim == Some("length".to_owned()));
-        assert!(pu.get_factor() == 1e-3);
     }
 }

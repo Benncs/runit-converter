@@ -27,6 +27,7 @@ impl Default for InlineUnitParser {
         }
     }
 }
+const FULL_PARSE_N_SPLIT: usize = 2;
 
 impl UnitParser for InlineUnitParser {
     fn set_delimiter(&mut self, delimiter: &str) -> bool {
@@ -58,7 +59,7 @@ impl UnitParser for InlineUnitParser {
             return Err(UnitError::BadUnit("Impossible to parse".to_owned()));
         }
         let splited: Vec<&str> = text.split(&self.exp_symbol).collect();
-        if splited.len() == 2 {
+        if splited.len() == FULL_PARSE_N_SPLIT {
             Ok(ElementUnit::new(
                 splited[0],
                 splited[1]
