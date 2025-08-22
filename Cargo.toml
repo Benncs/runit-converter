@@ -1,11 +1,12 @@
 [workspace]
-members = ["cli", "libunits-converter"]
+members = ["cli", "libunits-converter", "gui"]
 resolver = "3"
 
 [workspace.package]
 version = "0.1.1"
 edition = "2024"
-authors = ["Benjamin Casale"]
+
+authors = ["bcasale <benjamin.casale@proton.me>"]
 description = "Unit convert and Dimensional analysis"
 documentation = ""
 license = "GPL-3.0-or-later"
@@ -28,3 +29,13 @@ incremental = false
 opt-level = 3
 debug = 0
 overflow-checks = false
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
