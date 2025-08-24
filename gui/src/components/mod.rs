@@ -2,18 +2,28 @@
 mod lateral;
 mod table;
 use dioxus::prelude::*;
+use lateral::NavLateral;
 use table::UnitTable;
+const TABLE_CSS: Asset = asset!("/assets/styling/table.css");
 
-const HEADER_SVG: Asset = asset!("/assets/header.svg");
 #[component]
 pub fn Body() -> Element {
     rsx! {
+      document::Link {
+          rel: "stylesheet",
+          href: TABLE_CSS,
+      }
       div {
         id: "app-body",
 
+        NavLateral {  }
+        span { class:"vsep" }
+        div{
+          id:"table-btn",
         UnitTable {  }
 
         }
+    }
     }
 }
 

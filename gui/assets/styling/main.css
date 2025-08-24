@@ -1,9 +1,10 @@
-html,
-body {
-    height: 100%;
+#main {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
 }
 
-body {
+#main {
     background-color: #0f1116;
     color: #ffffff;
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -11,6 +12,12 @@ body {
     margin: 0;
     display: flex;
     flex-direction: column;
+}
+
+:root {
+    --header-bg-color: #4051aa;
+    --main-bg-color: white;
+    --header-text-color: #bbff00ab;
 }
 
 #app-header {
@@ -30,16 +37,38 @@ body {
 }
 
 #app-body {
-    flex: 1 0 auto;
+    /* flex: 1 0 auto; */
+    display: flex;
+    flex-direction: row;
     padding: 20px;
+    height: 100%;
 }
 
-#hero {
-    margin: 0;
+#table-btn {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
+}
+
+.vsep {
+    border-left: 6px solid var(--header-bg-color);
+    height: 100%;
+    padding-left: 2%;
+    margin-left: 2%;
+}
+.unit-table {
+    display: flex;
+    flex-direction: column;
+}
+
+#lat-1 #opt-seps {
+    width: 15%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-wrap: nowrap;
+    overflow-wrap: normal;
+    min-width: fit-content;
 }
 
 #links {
