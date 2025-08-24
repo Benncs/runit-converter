@@ -3,7 +3,10 @@ mod lateral;
 mod table;
 use dioxus::prelude::*;
 use lateral::NavLateral;
+use libunits_converter::UnitParser;
 use table::UnitTable;
+
+use crate::MainContext;
 const TABLE_CSS: Asset = asset!("/assets/styling/table.css");
 
 #[component]

@@ -2182,6 +2182,8 @@ name = "gui"
 version = "0.0.1"
 dependencies = [
  "dioxus",
+ "futures",
+ "libunits_converter",
 ]
 
 [[package]]
